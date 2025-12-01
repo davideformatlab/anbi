@@ -81,11 +81,14 @@
         #map-wrapper {
             flex: 1; 
             position: relative;
+            width: 100%;
+            min-height: 400px;
         }
         #map {
             width: 100%;
             height: 100%;
             background: #eef2f3; 
+            z-index: 1;
         }
 
         /* POPUP PERSONALIZZATO */
@@ -158,6 +161,10 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
+        // Debug: verifica che gli elementi HTML siano presenti
+        console.log('Map container:', document.getElementById('map'));
+        console.log('Map wrapper:', document.getElementById('map-wrapper'));
+        
         // --- CONFIGURAZIONE MAPPA ---
         const bounds = L.latLngBounds(L.latLng(35.0, 5.0), L.latLng(48.5, 20.0));
 
@@ -289,7 +296,7 @@
             marker.bindPopup(popupContent, {
                 className: 'custom-popup',
                 closeButton: false,
-                autoPan: false
+                autoPan: true
             });
 
             marker.on('mouseover', function (e) {
