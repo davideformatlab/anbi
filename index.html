@@ -170,8 +170,8 @@
 
         const map = L.map('map', {
             center: [25.0, 12.5],
-            zoom: 6,
-            minZoom: 5,
+            zoom: 4,
+            minZoom: 4,
             maxBounds: bounds,
             maxBoundsViscosity: 1.0,
             zoomControl: false
@@ -296,9 +296,7 @@
            marker.bindPopup(popupContent, {
                 className: 'custom-popup',
                 closeButton: false,
-                autoPan: true,            // Lasciamo che la mappa si sposti
-                autoPanPaddingTopLeft: [0, 80],  // <--- IL FIX: 80px di "margine" dall'alto (Header + spazio)
-                autoPanPaddingBottomRight: [0, 0]
+        
             });
 
             marker.on('mouseover', function (e) {
