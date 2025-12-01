@@ -289,12 +289,17 @@
             marker.bindPopup(popupContent, {
                 className: 'custom-popup',
                 closeButton: false,
-                autoPan: false  // <--- QUESTA è la riga che risolve il bug
+                autoPan: false
             });
 
             marker.on('mouseover', function (e) {
                 this.openPopup();
                 this.setStyle({ radius: 15, fillOpacity: 1 });
+            });
+
+            marker.on('mouseout', function (e) {
+                this.closePopup();
+                this.setStyle({ radius: 10, fillOpacity: 0.8 });
             });
         });
 
