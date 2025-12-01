@@ -293,10 +293,12 @@
                 <div class="popup-body">${point.desc}</div>
             `;
 
-            marker.bindPopup(popupContent, {
+           marker.bindPopup(popupContent, {
                 className: 'custom-popup',
                 closeButton: false,
-                autoPan: true
+                autoPan: true,            // Lasciamo che la mappa si sposti
+                autoPanPaddingTopLeft: [0, 80],  // <--- IL FIX: 80px di "margine" dall'alto (Header + spazio)
+                autoPanPaddingBottomRight: [0, 0]
             });
 
             marker.on('mouseover', function (e) {
