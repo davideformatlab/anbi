@@ -111,6 +111,38 @@
         .bg-flood { background-color: #1565c0; }
         .bg-drought { background-color: #c62828; }
         .bg-warning { background-color: #ef6c00; }
+        
+        /* --- STILI PER SMARTPHONE (Media Query) --- */
+        @media (max-width: 768px) {
+            /* 1. Cambiamo la direzione: da riga a colonna INVERSA */
+            /* Inversa perché nel codice la sidebar è prima della mappa, */
+            /* ma visivamente vogliamo la mappa (seconda) in alto. */
+            .dashboard-container {
+                flex-direction: column-reverse;
+            }
+
+            /* 2. La sidebar prende tutta la larghezza e metà altezza */
+            .sidebar {
+                width: 100%;
+                height: 45%; /* Lasciamo un po' più spazio alla mappa */
+                border-right: none;
+                border-top: 4px solid #ddd; /* Bordo separatore in alto invece che a destra */
+            }
+
+            /* 3. La mappa prende il resto dello spazio */
+            #map-wrapper {
+                height: 55%;
+                width: 100%;
+            }
+
+            /* 4. Aggiustamenti estetici per header più compatto */
+            header {
+                padding: 10px;
+            }
+            header h1 {
+                font-size: 1rem;
+            }
+        }
 
     </style>
 </head>
