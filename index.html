@@ -170,11 +170,11 @@
 
         const map = L.map('map', {
             center: [25.0, 12.5],
-            zoom: 1,
-            minZoom: 1,
+            zoom: 3,
+            minZoom: 3,
             maxBounds: bounds,
             maxBoundsViscosity: 1.0,
-            zoomControl: true
+            zoomControl: false
         });
 
         L.control.zoom({ position: 'topright' }).addTo(map);
