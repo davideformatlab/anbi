@@ -111,7 +111,7 @@
         .bg-flood { background-color: #1565c0; }
         .bg-drought { background-color: #c62828; }
         .bg-warning { background-color: #ef6c00; }
-        
+
         /* --- STILI PER SMARTPHONE (Media Query) --- */
         @media (max-width: 768px) {
             /* 1. Cambiamo la direzione: da riga a colonna INVERSA */
@@ -190,13 +190,21 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // --- CONFIGURAZIONE MAPPA ---
-        const bounds = L.latLngBounds(L.latLng(35.0, 5.0), L.latLng(50.0, 20.0));
+       // --- CONFIGURAZIONE MAPPA ---
+        
+        // 1. Rileviamo se siamo su uno smartphone (larghezza < 768px)
+        const isMobile = window.innerWidth <= 768;
+
+        // 2. Decidiamo il limite Nord: 60.0 per mobile (più spazio), 50.0 per desktop
+        const maxNorth = isMobile ? 60.0 : 50.0;
+
+        // 3. Creiamo i bounds usando la variabile calcolata
+        const bounds = L.latLngBounds(L.latLng(35.0, 5.0), L.latLng(maxNorth, 20.0));
 
         const map = L.map('map', {
             center: [42.0, 12.5],
-            zoom: 5,
-            minZoom: 5,
+            zoom: 5, // Lo zoom 5 va bene per entrambi per ora
+            minZoom: 4, // Lascio 4 come sicurezza se vuoi zoomare indietro
             maxBounds: bounds,
             maxBoundsViscosity: 1.0,
             zoomControl: false
