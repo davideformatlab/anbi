@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitoraggio Idrogeologico Italia - ANBI</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    
+    <style>
+        /* RESET E LAYOUT BASE */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+            background-color: #f0f2f5; 
+            height: 100vh; 
+            width: 100vw; 
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; 
+        }
+
+        /* HEADER */
+        header {
+            background: #2c3e50;
+            color: white;
+            padding: 15px 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            z-index: 10;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 60px;
+        }
+        header h1 { font-size: 1.2rem; margin: 0; }
+        header .subtitle { font-size: 0.8rem; opacity: 0.8; }
+
+        /* CONTENITORE PRINCIPALE */
+        .dashboard-container {
+            display: flex;
+            flex: 1; 
+            height: calc(100vh - 60px);
+        }
+
+        /* SIDEBAR AGGIORNATA (Contesto Strategico) */
+        .sidebar {
+            width: 320px;
+            background: white;
+            padding: 20px;
+            overflow-y: auto;
+            border-right: 1px solid #ddd;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .card {
+            background: #fff;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .card h3 { font-size: 1rem; margin-bottom: 8px; color: #2c3e50; font-weight: 700; }
+        .card p { font-size: 0.9rem; color: #555; line-height: 1.5; margin-bottom: 5px;}
+        
+        /* Stile liste */
+        .card ul {
+            padding-left: 20px;
+            margin-top: 5px;
+            font-size: 0.85rem;
+            color: #444;
+        }
+        .card li { margin-bottom: 4px; }
+
+        /* Evidenziatori */
+        .highlight-danger { color: #c62828; font-weight: bold; }
+        .highlight-action { color: #2e7d32; font-weight: bold; }
+
+        /* MAPPA */
+        #map-wrapper {
+            flex: 1; 
+            position: relative;
+        }
+        #map {
+            width: 100%;
+            height: 100%;
+            background: #eef2f3; 
+        }
+
+        /* POPUP PERSONALIZZATO */
+        .custom-popup .leaflet-popup-content-wrapper {
+            border-radius: 4px;
+            padding: 0;
+            overflow: hidden;
+        }
+        .custom-popup .leaflet-popup-content {
+            margin: 0;
+            width: 260px !important;
+        }
+        .popup-header {
+            padding: 10px;
+            color: white;
+            font-weight: bold;
+        }
+        .popup-body {
+            padding: 10px;
+            font-size: 0.9rem;
+            color: #333;
+        }
+        .bg-flood { background-color: #1565c0; }
+        .bg-drought { background-color: #c62828; }
+        .bg-warning { background-color: #ef6c00; }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <div>
+            <h1>Osservatorio ANBI Risorse Idriche</h1>
+            <span class="subtitle">Report Idrogeologico settimanale</span>
+        </div>
+        <div style="font-size: 0.8rem;">17 Nov 2025</div>
+    </header>
+
+    <div class="dashboard-container">
+        <div class="sidebar">
+            
+            <div class="card" style="border-left: 4px solid #c62828;">
+                <h3>Record di letalità</h3>
+                <p>L'Italia ha un triste primato: è al <span class="highlight-danger">1° posto in Europa</span> (e 2° al mondo tra i paesi a medio-alto reddito) per vittime causate da eventi climatici estremi.</p>
+            </div>
+            
+            <div class="card" style="border-left: 4px solid #1565c0;">
+                <h3>L'appello di ANBI</h3>
+                <p>Per l'adattamento climatico contro le emergenze idrogeologiche servono 3 interventi strutturali urgenti:</p>
+                <ul>
+                    <li>Piano nazionale di <strong style="color:blue">manutenzione straordinaria</strong>.</li>
+                    <li>Piano <strong style="color:blue">invasi multifunzionali</strong> (per trattenere l'acqua).</li>
+                    <li>Legge contro il <strong style="color:blue">consumo di suolo</strong>.</li>
+                </ul>
+            </div>
+
+            <div class="card" style="border-left: 4px solid #f9a825;">
+                <h3>Proposta di Legge CNEL</h3>
+                <p>Il <strong style="color:#F9A825">CNEL</strong> propone di dare facoltà a Regioni ed enti locali affinché possano stipulare convenzioni dirette con i <strong style="color:#F9A825">Consorzi di Bonifica</strong>, per affidare loro la progettazione e le attività di manutenzione contro il <strong style="color:#F9A825">dissesto Idrogeologico</strong>.</p>
+                
+            </div>
+
+            <button onclick="resetView()" style="padding: 10px; background: #2c3e50; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: auto;">Fai click per ricentrare la mappa</button>
+        </div>
+
+        <div id="map-wrapper">
+            <div id="map"></div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // --- CONFIGURAZIONE MAPPA ---
+        const bounds = L.latLngBounds(L.latLng(35.0, 5.0), L.latLng(48.5, 20.0));
+
+        const map = L.map('map', {
+            center: [42.0, 12.5],
+            zoom: 6,
+            minZoom: 5,
+            maxBounds: bounds,
+            maxBoundsViscosity: 1.0,
+            zoomControl: false
+        });
+
+        L.control.zoom({ position: 'topright' }).addTo(map);
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap &copy; CARTO',
+            subdomains: 'abcd',
+            maxZoom: 19
+        }).addTo(map);
+
+        // --- DATI ESTRATTI DAL REPORT ANBI --- 
+        const dataPoints = [
+            // NORD - ACQUA IN ECCESSO (Blu)
+            {
+                lat: 44.9133, lng: 8.6147, 
+                title: "Piemonte", 
+                desc: "In <strong>Piemonte</strong>, le abbondanti piogge, che hanno interessato l'Alessandrino, hanno rigenerato i flussi del <strong>fiume Tanaro</strong>, che erano scarsi da diverso tempo e che ora invece registrano <strong>valori ben superiori alla media mensile, +32%</strong>. In crescita anche i corsi d'acqua <strong>Stura di Demonte e Toce</strong>.",
+                type: "flood"
+            },
+            {
+                lat: 44.6000, lng: 10.8000, 
+                title: "Appennino Emilia-Romagna", 
+                desc: "Precipitazioni abbondanti hanno interessato anche l'<strong>Emilia-Romagna occidentale e centrale</strong>: sui bacini montani tra i fiumi Parma e Trebbia sono caduti circa <strong>100 millimetri di pioggia</strong> <em>(fonte: ARPAE)</em>; tali apporti hanno rinvigorito i flussi in alveo della maggior parte dei fiumi appenninici, che registrano portate decisamente superiori alle medie del periodo: <strong>Reno +377%; Secchia +269%; Enza +224%; Taro +457%</strong>.",
+                type: "flood"
+            },
+            {
+                lat: 44.4056, lng: 8.9463, 
+                title: "Liguria (provincia di Genova)", 
+                desc: "<strong>Bombe d'acqua:</strong> oltre 170mm in 12 ore. Il fiume Magra è cresciuto di <strong>1,80 metri in una notte</strong>.",
+                type: "flood"
+            },
+            {
+                lat: 45.9765, lng: 13.4523, 
+                title: "Friuli-Venezia Giulia", 
+                desc: "<strong>Bombe d'acqua e esondazioni:</strong> Il 17 novembre a <strong> Brazzano di Cormons </strong> sono caduti oltre <strong>280 mm d'acqua in 24 ore</strong> con una punta di 172 mm in 5 ore, sono esondati i torrenti <strong>Judrio</strong> (+4,26m) e <strong>Torre</strong> (+2,82m). Il costo umano è stato di <strong>2 morti, 300 gli sfollati</strong>.",
+                type: "flood"
+            },
+            {
+                lat: 45.4064, lng: 11.8768, 
+                title: "Veneto", 
+                desc: "Crescono <strong>oltre la media</strong> le portate fluviali dei corsi d'acqua <strong>Livenza, Muson dei Sassi e Bacchiglione</strong>, quest'ultimo <strong>+74%</strong>. L'Adige invece è in calo.",
+                type: "flood"
+            },
+            {
+                lat: 43.9936, lng: 10.3129, 
+                title: "Toscana", 
+                desc: "È qui il confine tra le due <strong>“Italie dell'acqua”</strong> (quella della crisi idrica e quella della risorsa in eccesso). Negli scorsi giorni accumuli di pioggia, superiori ai <strong>200 millimetri</strong>, si sono registrati in diverse località della Lucchesia; a Stazzema, in soli <strong>30 giorni</strong> la cumulate hanno superato i 900 mm. In forte crescita sono le portate dei fiumi Serchio (ora oltre i 280 metri cubi al secondo) ed Arno (+18% sulla media), mentre calano i flussi nell'Ombrone.",
+                type: "flood"
+            },
+            
+            // CONTESTO CLIMATICO (Arancione)
+            {
+                lat: 40.5000, lng: 12.0000, 
+                title: "Mar Mediterraneo (dati Copernicus)", 
+                desc: "I rilevamenti di <strong>novembre 2025</strong> indicano che in quasi tutta l'area mediterranea l'acqua marina è tra <strong> 1 e 2 gradi più calda del normale</strong>." ,
+                type: "warning"
+            },
+            {
+                lat: 41.7486, lng: 12.6683, 
+                title: "Lazio", 
+                desc: "Nel <strong>Lazio</strong>, i bacini naturali non riescono più da tempo a mantenere un <strong>equilibrio idrico</strong> tra crescenti richieste di prelievi a causa della pressante <strong>antropizzazione dei territori</strong> limitrofi ed afflussi sempre più scarsi: in meno di 2 mesi il livello del <strong>lago di Albano</strong> è sceso di <strong>20 centimetri</strong> <em>Fonte: AUBAC</em>.",
+                type: "warning"
+            },
+
+            // SUD - SICCITA' (Rosso)
+            {
+                lat: 40.1500, lng: 16.3333, 
+                title: "Basilicata", 
+                desc: "<strong>Invasi vuoti:</strong> negli invasi lucani rimangono solamente <strong>82,57 milioni di metri cubi d'acqua</strong>: le due più grandi dighe (Monte Cotugno e Pertusillo) trattengono rispettivamente il <strong>12% ed il 23% del volume autorizzato</strong>",
+                type: "drought"
+            },
+            {
+                lat: 41.5833, lng: 15.0167, 
+                title: "Puglia", 
+                desc: "A causa della mancanza di piogge, il <strong>grande invaso di Occhito</strong> non si è ricaricato ed è stato necessario intaccare il cosiddetto <em>volume morto</em>: si tratta della <strong>riserva d'acqua più profonda</strong>, situata sotto le normali bocche di prelievo, che viene estratta meccanicamente solo in situazioni di <strong>estrema emergenza</strong>. Il quadro regionale è drammatico: altri invasi, come Capaccio e San Pietro, appaiono ormai da oltre un anno come <strong>semplici pozze vuote</strong>.",
+                type: "drought"
+            },
+            {
+                lat: 37.5079, lng: 15.0830, 
+                title: "Sicilia", 
+                desc: "<strong>Caldo anomalo:</strong> temperature minime sui <strong>16 gradi e massime che toccano i 21 gradi</strong>.",
+                type: "drought"
+            }
+        ];
+
+        // --- RENDERIZZAZIONE MARKER ---
+        function getMarkerStyle(type) {
+            switch(type) {
+                case 'flood': return { color: '#1565c0', fillColor: '#1565c0' };
+                case 'drought': return { color: '#c62828', fillColor: '#c62828' };
+                case 'warning': return { color: '#ef6c00', fillColor: '#ef6c00' };
+            }
+        }
+
+        function getHeaderClass(type) {
+            switch(type) {
+                case 'flood': return 'bg-flood';
+                case 'drought': return 'bg-drought';
+                case 'warning': return 'bg-warning';
+            }
+        }
+
+        dataPoints.forEach(point => {
+            const style = getMarkerStyle(point.type);
+            
+            const marker = L.circleMarker([point.lat, point.lng], {
+                color: 'white',
+                weight: 2,
+                fillColor: style.fillColor,
+                fillOpacity: 0.8,
+                radius: 10
+            }).addTo(map);
+
+            const popupContent = `
+                <div class="popup-header ${getHeaderClass(point.type)}">${point.title}</div>
+                <div class="popup-body">${point.desc}</div>
+            `;
+
+            marker.bindPopup(popupContent, {
+                className: 'custom-popup',
+                closeButton: false
+            });
+
+            marker.on('mouseover', function (e) {
+                this.openPopup();
+                this.setStyle({ radius: 15, fillOpacity: 1 });
+            });
+        });
+
+        function resetView() {
+            map.setView([42.0, 12.5], 6);
+        }
+
+        window.addEventListener('resize', () => {
+            map.invalidateSize();
+        });
+
+    </script>
+</body>
+</html>
