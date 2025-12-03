@@ -96,7 +96,7 @@
         }
         .custom-popup .leaflet-popup-content {
             margin: 0;
-            width: 260px !important;
+            width: 280px !important;
         }
         .popup-header {
             padding: 10px;
@@ -111,6 +111,14 @@
         .bg-flood { background-color: #1565c0; }
         .bg-drought { background-color: #c62828; }
         .bg-warning { background-color: #ef6c00; }
+        .bg-default { background-color: #555; }
+
+        /* LOADING SPINNER */
+        .loading-overlay {
+            position: absolute; top:0; left:0; width:100%; height:100%;
+            background: rgba(255,255,255,0.8);
+            display: flex; justify-content: center; align-items: center; z-index: 1000;
+        }
 
         /* --- STILI PER SMARTPHONE (Media Query) --- */
         @media (max-width: 768px) {
@@ -151,7 +159,7 @@
     <header>
         <div>
             <h1>Osservatorio ANBI Risorse Idriche</h1>
-            <span class="subtitle">Report Idrogeologico settimanale</span>
+            <span class="subtitle">Report Idrogeologico settimanale - Visualizzazione per Regioni</span>
         </div>
         <div style="font-size: 0.8rem;">17 Nov 2025</div>
     </header>
@@ -177,25 +185,25 @@
             <div class="card" style="border-left: 4px solid #f9a825;">
                 <h3>Proposta di Legge CNEL</h3>
                 <p>Il <strong style="color:#F9A825">CNEL</strong> propone di dare facoltà a Regioni ed enti locali affinché possano stipulare convenzioni dirette con i <strong style="color:#F9A825">Consorzi di Bonifica</strong>, per affidare loro la progettazione e le attività di manutenzione contro il <strong style="color:#F9A825">dissesto Idrogeologico</strong>.</p>
-                
             </div>
 
             <button onclick="resetView()" style="padding: 10px; background: #2c3e50; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: auto;">Fai click per ricentrare la mappa</button>
         </div>
 
         <div id="map-wrapper">
+            <div id="loader" class="loading-overlay">Caricamento Regioni...</div>
             <div id="map"></div>
         </div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-       // --- CONFIGURAZIONE MAPPA ---
+        // --- CONFIGURAZIONE MAPPA ---
         
         // 1. Rileviamo se siamo su uno smartphone (larghezza < 768px)
         const isMobile = window.innerWidth <= 768;
 
-        // 2. Decidiamo il limite Nord: 60.0 per mobile (più spazio), 50.0 per desktop
+        // 2. Decidiamo il limite Nord: 65.0 per mobile (più spazio), 50.0 per desktop
         const maxNorth = isMobile ? 65.0 : 50.0;
 
         // 3. Creiamo i bounds usando la variabile calcolata
@@ -203,8 +211,8 @@
 
         const map = L.map('map', {
             center: [42.0, 12.5],
-            zoom: 5, // Lo zoom 5 va bene per entrambi per ora
-            minZoom: 4, // Lascio 4 come sicurezza se vuoi zoomare indietro
+            zoom: 5,
+            minZoom: 4,
             maxBounds: bounds,
             maxBoundsViscosity: 1.0,
             zoomControl: false
@@ -212,93 +220,75 @@
 
         L.control.zoom({ position: 'topright' }).addTo(map);
 
+        // Mappa base molto chiara per far risaltare i colori delle regioni
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
             attribution: '&copy; OpenStreetMap &copy; CARTO',
             subdomains: 'abcd',
             maxZoom: 19
         }).addTo(map);
 
-        // --- DATI ESTRATTI DAL REPORT ANBI --- 
-        const dataPoints = [
-            // NORD - ACQUA IN ECCESSO (Blu)
-            {
-                lat: 44.9133, lng: 8.6147, 
-                title: "Piemonte", 
+        // --- DATI REGIONALI COMPLETI DA VERSION 1.0 ---
+        // NOTA: La chiave "regionName" DEVE corrispondere esattamente al nome nel GeoJSON
+        const dataRegions = {
+            "Piemonte": {
+                title: "Piemonte",
                 desc: "In <strong>Piemonte</strong>, le abbondanti piogge, che hanno interessato l'Alessandrino, hanno rigenerato i flussi del <strong>fiume Tanaro</strong>, che erano scarsi da diverso tempo e che ora invece registrano <strong>valori ben superiori alla media mensile, +32%</strong>. In crescita anche i corsi d'acqua <strong>Stura di Demonte e Toce</strong>.",
                 type: "flood"
             },
-            {
-                lat: 44.6000, lng: 10.8000, 
-                title: "Appennino Emilia-Romagna", 
+            "Emilia-Romagna": {
+                title: "Appennino Emilia-Romagna",
                 desc: "Precipitazioni abbondanti hanno interessato anche l'<strong>Emilia-Romagna occidentale e centrale</strong>: sui bacini montani tra i fiumi Parma e Trebbia sono caduti circa <strong>100 millimetri di pioggia</strong> <em>(fonte: ARPAE)</em>; tali apporti hanno rinvigorito i flussi in alveo della maggior parte dei fiumi appenninici, che registrano portate decisamente superiori alle medie del periodo: <strong>Reno +377%; Secchia +269%; Enza +224%; Taro +457%</strong>.",
                 type: "flood"
             },
-            {
-                lat: 44.4056, lng: 8.9463, 
-                title: "Liguria (provincia di Genova)", 
+            "Liguria": {
+                title: "Liguria (provincia di Genova)",
                 desc: "<strong>Bombe d'acqua:</strong> oltre 170mm in 12 ore. Il fiume Magra è cresciuto di <strong>1,80 metri in una notte</strong>.",
                 type: "flood"
             },
-            {
-                lat: 45.9765, lng: 13.4523, 
-                title: "Friuli-Venezia Giulia", 
-                desc: "<strong>Bombe d'acqua e esondazioni:</strong> Il 17 novembre a <strong> Brazzano di Cormons </strong> sono caduti oltre <strong>280 mm d'acqua in 24 ore</strong> con una punta di 172 mm in 5 ore, sono esondati i torrenti <strong>Judrio</strong> (+4,26m) e <strong>Torre</strong> (+2,82m). Il costo umano è stato di <strong>2 morti, 300 gli sfollati</strong>.",
+            "Friuli Venezia Giulia": {
+                title: "Friuli-Venezia Giulia",
+                desc: "<strong>Bombe d'acqua e esondazioni:</strong> Il 17 novembre a <strong>Brazzano di Cormons</strong> sono caduti oltre <strong>280 mm d'acqua in 24 ore</strong> con una punta di 172 mm in 5 ore, sono esondati i torrenti <strong>Judrio</strong> (+4,26m) e <strong>Torre</strong> (+2,82m). Il costo umano è stato di <strong>2 morti, 300 gli sfollati</strong>.",
                 type: "flood"
             },
-            {
-                lat: 45.4064, lng: 11.8768, 
-                title: "Veneto", 
+            "Veneto": {
+                title: "Veneto",
                 desc: "Crescono <strong>oltre la media</strong> le portate fluviali dei corsi d'acqua <strong>Livenza, Muson dei Sassi e Bacchiglione</strong>, quest'ultimo <strong>+74%</strong>. L'Adige invece è in calo.",
                 type: "flood"
             },
-            {
-                lat: 43.9936, lng: 10.3129, 
-                title: "Toscana", 
-                desc: "È qui il confine tra le due <strong>“Italie dell'acqua”</strong> (quella della crisi idrica e quella della risorsa in eccesso). Negli scorsi giorni accumuli di pioggia, superiori ai <strong>200 millimetri</strong>, si sono registrati in diverse località della Lucchesia; a Stazzema, in soli <strong>30 giorni</strong> la cumulate hanno superato i 900 mm. In forte crescita sono le portate dei fiumi Serchio (ora oltre i 280 metri cubi al secondo) ed Arno (+18% sulla media), mentre calano i flussi nell'Ombrone.",
+            "Toscana": {
+                title: "Toscana",
+                desc: "È qui il confine tra le due <strong>Italie dell'acqua</strong> (quella della crisi idrica e quella della risorsa in eccesso). Negli scorsi giorni accumuli di pioggia, superiori ai <strong>200 millimetri</strong>, si sono registrati in diverse località della Lucchesia; a Stazzema, in soli <strong>30 giorni</strong> la cumulate hanno superato i 900 mm. In forte crescita sono le portate dei fiumi Serchio (ora oltre i 280 metri cubi al secondo) ed Arno (+18% sulla media), mentre calano i flussi nell'Ombrone.",
                 type: "flood"
             },
-            
-            // CONTESTO CLIMATICO (Arancione)
-            {
-                lat: 40.5000, lng: 12.0000, 
-                title: "Mar Mediterraneo (dati Copernicus)", 
-                desc: "I rilevamenti di <strong>novembre 2025</strong> indicano che in quasi tutta l'area mediterranea l'acqua marina è tra <strong> 1 e 2 gradi più calda del normale</strong>." ,
-                type: "warning"
-            },
-            {
-                lat: 41.7486, lng: 12.6683, 
-                title: "Lazio", 
+            "Lazio": {
+                title: "Lazio",
                 desc: "Nel <strong>Lazio</strong>, i bacini naturali non riescono più da tempo a mantenere un <strong>equilibrio idrico</strong> tra crescenti richieste di prelievi a causa della pressante <strong>antropizzazione dei territori</strong> limitrofi ed afflussi sempre più scarsi: in meno di 2 mesi il livello del <strong>lago di Albano</strong> è sceso di <strong>20 centimetri</strong> <em>Fonte: AUBAC</em>.",
                 type: "warning"
             },
-
-            // SUD - SICCITA' (Rosso)
-            {
-                lat: 40.1500, lng: 16.3333, 
-                title: "Basilicata", 
+            "Basilicata": {
+                title: "Basilicata",
                 desc: "<strong>Invasi vuoti:</strong> negli invasi lucani rimangono solamente <strong>82,57 milioni di metri cubi d'acqua</strong>: le due più grandi dighe (Monte Cotugno e Pertusillo) trattengono rispettivamente il <strong>12% ed il 23% del volume autorizzato</strong>",
                 type: "drought"
             },
-            {
-                lat: 41.5833, lng: 15.0167, 
-                title: "Puglia", 
+            "Puglia": {
+                title: "Puglia",
                 desc: "A causa della mancanza di piogge, il <strong>grande invaso di Occhito</strong> non si è ricaricato ed è stato necessario intaccare il cosiddetto <em>volume morto</em>: si tratta della <strong>riserva d'acqua più profonda</strong>, situata sotto le normali bocche di prelievo, che viene estratta meccanicamente solo in situazioni di <strong>estrema emergenza</strong>. Il quadro regionale è drammatico: altri invasi, come Capaccio e San Pietro, appaiono ormai da oltre un anno come <strong>semplici pozze vuote</strong>.",
                 type: "drought"
             },
-            {
-                lat: 37.5079, lng: 15.0830, 
-                title: "Sicilia", 
+            "Sicilia": {
+                title: "Sicilia",
                 desc: "<strong>Caldo anomalo:</strong> temperature minime sui <strong>16 gradi e massime che toccano i 21 gradi</strong>.",
                 type: "drought"
             }
-        ];
+        };
 
-        // --- RENDERIZZAZIONE MARKER ---
-        function getMarkerStyle(type) {
+        // --- FUNZIONI DI STILE ---
+        function getColor(type) {
             switch(type) {
-                case 'flood': return { color: '#1565c0', fillColor: '#1565c0' };
-                case 'drought': return { color: '#c62828', fillColor: '#c62828' };
-                case 'warning': return { color: '#ef6c00', fillColor: '#ef6c00' };
+                case 'flood': return '#1565c0';   // Blu scuro
+                case 'drought': return '#c62828'; // Rosso scuro
+                case 'warning': return '#ef6c00'; // Arancio
+                default: return '#999999';        // Grigio per regioni senza dati
             }
         }
 
@@ -307,35 +297,89 @@
                 case 'flood': return 'bg-flood';
                 case 'drought': return 'bg-drought';
                 case 'warning': return 'bg-warning';
+                default: return 'bg-default';
             }
         }
 
-        dataPoints.forEach(point => {
-            const style = getMarkerStyle(point.type);
-            
-            const marker = L.circleMarker([point.lat, point.lng], {
-                color: 'white',
-                weight: 2,
-                fillColor: style.fillColor,
-                fillOpacity: 0.8,
-                radius: 10
-            }).addTo(map);
+        // --- CARICAMENTO GEOJSON REGIONI ITALIANE ---
+        // Usiamo un repository pubblico open source per i confini (OpenPolis)
+        const geoJsonUrl = "https://raw.githubusercontent.com/openpolis/geojson-italy/master/geojson/limits_IT_regions.geojson";
 
-            const popupContent = `
-                <div class="popup-header ${getHeaderClass(point.type)}">${point.title}</div>
-                <div class="popup-body">${point.desc}</div>
-            `;
+        fetch(geoJsonUrl)
+            .then(response => response.json())
+            .then(data => {
+                // Nascondi il loader
+                document.getElementById('loader').style.display = 'none';
 
-            marker.bindPopup(popupContent, {
-                className: 'custom-popup',
-                closeButton: false
+                L.geoJson(data, {
+                    style: function(feature) {
+                        const regName = feature.properties.reg_name;
+                        const regionData = dataRegions[regName];
+
+                        // Se la regione ha dati, la coloriamo. Altrimenti grigio trasparente
+                        if (regionData) {
+                            return {
+                                fillColor: getColor(regionData.type),
+                                weight: 1, // Spessore bordo
+                                opacity: 1,
+                                color: 'white', // Colore bordo
+                                fillOpacity: 0.6 // Trasparenza colore (60%)
+                            };
+                        } else {
+                            return {
+                                fillColor: '#cccccc',
+                                weight: 1,
+                                opacity: 1,
+                                color: 'white',
+                                fillOpacity: 0.1 // Molto trasparente se non ci sono dati
+                            };
+                        }
+                    },
+                    onEachFeature: function(feature, layer) {
+                        const regName = feature.properties.reg_name;
+                        const regionData = dataRegions[regName];
+
+                        if (regionData) {
+                            // Creiamo il contenuto del popup
+                            const popupContent = `
+                                <div class="popup-header ${getHeaderClass(regionData.type)}">${regionData.title}</div>
+                                <div class="popup-body">${regionData.desc}</div>
+                            `;
+
+                            layer.bindPopup(popupContent, {
+                                className: 'custom-popup',
+                                closeButton: false,
+                                autoPan: true
+                            });
+
+                            // Effetto Hover
+                            layer.on('mouseover', function(e) {
+                                // Apri il popup
+                                this.openPopup();
+                                // Rendi il colore più solido per evidenziare
+                                this.setStyle({
+                                    fillOpacity: 0.85,
+                                    weight: 2
+                                });
+                            });
+
+                            layer.on('mouseout', function(e) {
+                                // Torna alla trasparenza originale
+                                this.setStyle({
+                                    fillOpacity: 0.6,
+                                    weight: 1
+                                });
+                            });
+                            
+                            // Su mobile, il tocco apre il popup (gestito nativamente da Leaflet)
+                        }
+                    }
+                }).addTo(map);
+            })
+            .catch(error => {
+                console.error("Errore caricamento GeoJSON:", error);
+                document.getElementById('loader').innerText = "Errore caricamento mappa.";
             });
-
-            marker.on('mouseover', function (e) {
-                this.openPopup();
-                this.setStyle({ radius: 15, fillOpacity: 1 });
-            });
-        });
 
         function resetView() {
             map.setView([42.0, 12.5], 5);
