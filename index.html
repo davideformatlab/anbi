@@ -42,7 +42,7 @@
             height: calc(100vh - 60px);
         }
 
-        /* SIDEBAR AGGIORNATA (Contesto Strategico) */
+        /* SIDEBAR */
         .sidebar {
             width: 320px;
             background: white;
@@ -64,7 +64,6 @@
         .card h3 { font-size: 1rem; margin-bottom: 8px; color: #2c3e50; font-weight: 700; }
         .card p { font-size: 0.9rem; color: #555; line-height: 1.5; margin-bottom: 5px;}
         
-        /* Stile liste */
         .card ul {
             padding-left: 20px;
             margin-top: 5px;
@@ -73,7 +72,6 @@
         }
         .card li { margin-bottom: 4px; }
 
-        /* Evidenziatori */
         .highlight-danger { color: #c62828; font-weight: bold; }
         .highlight-action { color: #2e7d32; font-weight: bold; }
 
@@ -113,6 +111,39 @@
         .bg-warning { background-color: #ef6c00; }
         .bg-default { background-color: #555; }
 
+        /* RIQUADRO ISTRUZIONI (Nuovo) */
+        .info-box {
+            background: white;
+            border-radius: 5px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+            width: 250px;
+            overflow: hidden;
+            font-size: 0.9rem;
+            border: 1px solid #ccc;
+        }
+        .info-box-header {
+            background: #e9ecef;
+            padding: 8px 12px;
+            font-weight: bold;
+            color: #495057;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #ccc;
+        }
+        .info-box-close {
+            cursor: pointer;
+            font-weight: bold;
+            color: #999;
+            padding: 0 5px;
+        }
+        .info-box-close:hover { color: #333; }
+        .info-box-content {
+            padding: 12px;
+            color: #555;
+            line-height: 1.4;
+        }
+
         /* LOADING SPINNER */
         .loading-overlay {
             position: absolute; top:0; left:0; width:100%; height:100%;
@@ -120,38 +151,14 @@
             display: flex; justify-content: center; align-items: center; z-index: 1000;
         }
 
-        /* --- STILI PER SMARTPHONE (Media Query) --- */
+        /* MEDIA QUERY MOBILE */
         @media (max-width: 768px) {
-            /* 1. Cambiamo la direzione: da riga a colonna INVERSA */
-            /* Inversa perché nel codice la sidebar è prima della mappa, */
-            /* ma visivamente vogliamo la mappa (seconda) in alto. */
-            .dashboard-container {
-                flex-direction: column-reverse;
-            }
-
-            /* 2. La sidebar prende tutta la larghezza e metà altezza */
-            .sidebar {
-                width: 100%;
-                height: 45%; /* Lasciamo un po' più spazio alla mappa */
-                border-right: none;
-                border-top: 4px solid #ddd; /* Bordo separatore in alto invece che a destra */
-            }
-
-            /* 3. La mappa prende il resto dello spazio */
-            #map-wrapper {
-                height: 55%;
-                width: 100%;
-            }
-
-            /* 4. Aggiustamenti estetici per header più compatto */
-            header {
-                padding: 10px;
-            }
-            header h1 {
-                font-size: 1rem;
-            }
+            .dashboard-container { flex-direction: column-reverse; }
+            .sidebar { width: 100%; height: 45%; border-right: none; border-top: 4px solid #ddd; }
+            #map-wrapper { height: 55%; width: 100%; }
+            header { padding: 10px; }
+            header h1 { font-size: 1rem; }
         }
-
     </style>
 </head>
 <body>
@@ -199,14 +206,8 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         // --- CONFIGURAZIONE MAPPA ---
-        
-        // 1. Rileviamo se siamo su uno smartphone (larghezza < 768px)
         const isMobile = window.innerWidth <= 768;
-
-        // 2. Decidiamo il limite Nord: 65.0 per mobile (più spazio), 50.0 per desktop
         const maxNorth = isMobile ? 65.0 : 50.0;
-
-        // 3. Creiamo i bounds usando la variabile calcolata
         const bounds = L.latLngBounds(L.latLng(35.0, -3.0), L.latLng(maxNorth, 28.0));
 
         const map = L.map('map', {
@@ -220,15 +221,59 @@
 
         L.control.zoom({ position: 'topright' }).addTo(map);
 
-        // Mappa base molto chiara per far risaltare i colori delle regioni
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
             attribution: '&copy; OpenStreetMap &copy; CARTO',
             subdomains: 'abcd',
             maxZoom: 19
         }).addTo(map);
 
-        // --- DATI REGIONALI COMPLETI DA VERSION 1.0 ---
-        // NOTA: La chiave "regionName" DEVE corrispondere esattamente al nome nel GeoJSON
+        // --- AGGIUNTA DEL RIQUADRO ISTRUZIONI (Leaflet Custom Control) ---
+        L.Control.Instructions = L.Control.extend({
+            onAdd: function(map) {
+                // Creiamo il contenitore principale
+                const container = L.DomUtil.create('div', 'info-box leaflet-bar');
+                
+                // Creiamo l'HTML interno (header con X e contenuto)
+                container.innerHTML = `
+                    <div class="info-box-header">
+                        <span>Guida alla mappa</span>
+                        <span class="info-box-close" onclick="closeInstructions(this)">✕</span>
+                    </div>
+                    <div class="info-box-content">
+                        <p style="margin-top:8px;"><strong>Clicca su una regione colorata</strong> per aprire la scheda di dettaglio con i dati idrogeologici.</p>
+                        ${isMobile ? '<p style="margin-top:8px; font-size:0.8rem; color:#777;">Su smartphone: tocca per selezionare.</p>' : ''}
+                    </div>
+                `;
+
+                // IMPORTANTE: Impedisce che i click sul box si propaghino alla mappa
+                L.DomEvent.disableClickPropagation(container);
+                // Impedisce lo zoom con la rotella sopra il box
+                L.DomEvent.disableScrollPropagation(container);
+
+                return container;
+            },
+            onRemove: function(map) {
+                // Pulizia se necessario
+            }
+        });
+
+        // Aggiungiamo il controllo alla mappa in alto a destra
+        const instructionsControl = new L.Control.Instructions({ position: 'topright' });
+        instructionsControl.addTo(map);
+
+        // Funzione globale per chiudere il box (chiamata dalla 'X')
+        function closeInstructions(element) {
+            // Trova il contenitore genitore .info-box e lo nasconde
+            const container = element.closest('.info-box');
+            if (container) {
+                // Usiamo Leaflet per rimuoverlo elegantemente
+                instructionsControl.remove();
+            }
+        }
+        // --- FINE RIQUADRO ISTRUZIONI ---
+
+
+        // --- DATI REGIONALI ---
         const dataRegions = {
             "Piemonte": {
                 title: "Piemonte",
@@ -282,13 +327,13 @@
             }
         };
 
-        // --- FUNZIONI DI STILE ---
+        // --- STILI ---
         function getColor(type) {
             switch(type) {
-                case 'flood': return '#1565c0';   // Blu scuro
-                case 'drought': return '#c62828'; // Rosso scuro
-                case 'warning': return '#ef6c00'; // Arancio
-                default: return '#999999';        // Grigio per regioni senza dati
+                case 'flood': return '#1565c0';   
+                case 'drought': return '#c62828'; 
+                case 'warning': return '#ef6c00'; 
+                default: return '#999999';        
             }
         }
 
@@ -301,14 +346,12 @@
             }
         }
 
-        // --- CARICAMENTO GEOJSON REGIONI ITALIANE ---
-        // Usiamo un repository pubblico open source per i confini (OpenPolis)
+        // --- CARICAMENTO GEOJSON E LOGICA CLICK/HOVER CORRETTA ---
         const geoJsonUrl = "https://raw.githubusercontent.com/openpolis/geojson-italy/master/geojson/limits_IT_regions.geojson";
 
         fetch(geoJsonUrl)
             .then(response => response.json())
             .then(data => {
-                // Nascondi il loader
                 document.getElementById('loader').style.display = 'none';
 
                 L.geoJson(data, {
@@ -316,14 +359,13 @@
                         const regName = feature.properties.reg_name;
                         const regionData = dataRegions[regName];
 
-                        // Se la regione ha dati, la coloriamo. Altrimenti grigio trasparente
                         if (regionData) {
                             return {
                                 fillColor: getColor(regionData.type),
-                                weight: 1, // Spessore bordo
+                                weight: 1, 
                                 opacity: 1,
-                                color: 'white', // Colore bordo
-                                fillOpacity: 0.6 // Trasparenza colore (60%)
+                                color: 'white', 
+                                fillOpacity: 0.6 
                             };
                         } else {
                             return {
@@ -331,7 +373,7 @@
                                 weight: 1,
                                 opacity: 1,
                                 color: 'white',
-                                fillOpacity: 0.1 // Molto trasparente se non ci sono dati
+                                fillOpacity: 0.1 
                             };
                         }
                     },
@@ -340,23 +382,23 @@
                         const regionData = dataRegions[regName];
 
                         if (regionData) {
-                            // Creiamo il contenuto del popup
                             const popupContent = `
                                 <div class="popup-header ${getHeaderClass(regionData.type)}">${regionData.title}</div>
                                 <div class="popup-body">${regionData.desc}</div>
                             `;
 
+                            // --- CONFIGURAZIONE PERFETTA PER EVITARE "SBATTIMENTI" ---
+                            // 1. Hover: cambia solo il colore (niente popup)
+                            // 2. Click: apre il popup e sposta la mappa dolcemente (AutoPan)
+                            
                             layer.bindPopup(popupContent, {
                                 className: 'custom-popup',
-                                closeButton: false,
-                                autoPan: true
+                                closeButton: true,
+                                autoPan: true,           // La mappa si sposterà se necessario
+                                autoPanPadding: [50, 50] // Lascia spazio dal bordo
                             });
 
-                            // Effetto Hover
                             layer.on('mouseover', function(e) {
-                                // Apri il popup
-                                this.openPopup();
-                                // Rendi il colore più solido per evidenziare
                                 this.setStyle({
                                     fillOpacity: 0.85,
                                     weight: 2
@@ -364,14 +406,11 @@
                             });
 
                             layer.on('mouseout', function(e) {
-                                // Torna alla trasparenza originale
                                 this.setStyle({
                                     fillOpacity: 0.6,
                                     weight: 1
                                 });
                             });
-                            
-                            // Su mobile, il tocco apre il popup (gestito nativamente da Leaflet)
                         }
                     }
                 }).addTo(map);
