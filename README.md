@@ -48,3 +48,15 @@ const dataRegions = {
     },
     // ... altre regioni
 };
+
+🗺️ Fonti Dati
+Dati Idrogeologici: Elaborazioni basate sui report dell'Osservatorio ANBI.
+
+Confini Geografici: OpenPolis GeoJSON Italy.
+
+Mappe di base: CartoDB Positron (OpenStreetMap).
+
+📄 Licenza
+Distribuito sotto licenza MIT.
+
+Sviluppato con ❤️ per la tutela del territorio italiano.
